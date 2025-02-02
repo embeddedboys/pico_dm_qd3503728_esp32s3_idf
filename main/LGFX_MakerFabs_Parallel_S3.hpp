@@ -10,13 +10,107 @@
 #include <LovyanGFX.hpp>
 #include <driver/i2c.h>
 
+#define NOLOGO_ESP32S3_PICO   1
+#define WALNUTPI_PICOW        2
+#define UNKNOWN_ESP32S3_PICO  3
+
+#ifndef DEFAULT_CORE_BOARD_MODEL
+  #define DEFAULT_CORE_BOARD_MODEL NOLOGO_ESP32S3_PICO
+#endif
+
+#if DEFAULT_CORE_BOARD_MODEL == NOLOGO_ESP32S3_PICO
+  #define TFT_PIN_BLK   9
+  #define TFT_PIN_WR    2
+  #define TFT_PIN_RD    41
+  #define TFT_PIN_RS    4
+  #define TFT_PIN_RST   6
+
+  #define TFT_PIN_D0    11
+  #define TFT_PIN_D1    12
+  #define TFT_PIN_D2    13
+  #define TFT_PIN_D3    14
+  #define TFT_PIN_D4    15
+  #define TFT_PIN_D5    16
+  #define TFT_PIN_D6    17
+  #define TFT_PIN_D7    18
+  #define TFT_PIN_D8    33
+  #define TFT_PIN_D9    34
+  #define TFT_PIN_D10   35
+  #define TFT_PIN_D11   36
+  #define TFT_PIN_D12   37
+  #define TFT_PIN_D13   38
+  #define TFT_PIN_D14   39
+  #define TFT_PIN_D15   40
+
+  #define TP_PIN_SDA    7
+  #define TP_PIN_SCL    8
+  #define TP_PIN_INT    5
+#elif DEFAULT_CORE_BOARD_MODEL == WALNUTPI_PICOW
+  #define TFT_PIN_BLK   11
+  #define TFT_PIN_WR    5
+  #define TFT_PIN_RD    2
+  #define TFT_PIN_RS    6
+  #define TFT_PIN_RST   8
+
+  #define TFT_PIN_D0    13
+  #define TFT_PIN_D1    14
+  #define TFT_PIN_D2    15
+  #define TFT_PIN_D3    16
+  #define TFT_PIN_D4    17
+  #define TFT_PIN_D5    18
+  #define TFT_PIN_D6    21
+  #define TFT_PIN_D7    34
+  #define TFT_PIN_D8    35
+  #define TFT_PIN_D9    36
+  #define TFT_PIN_D10   37
+  #define TFT_PIN_D11   38
+  #define TFT_PIN_D12   39
+  #define TFT_PIN_D13   40
+  #define TFT_PIN_D14   41
+  #define TFT_PIN_D15   42
+
+  #define TP_PIN_SDA    9
+  #define TP_PIN_SCL    10
+  #define TP_PIN_INT    7
+  #error "Walnutpi PicoW not supported yet!"
+#elif DEFAULT_CORE_BOARD_MODEL == UNKNOWN_ESP32S3_PICO
+  #define TFT_PIN_BLK   9
+  #define TFT_PIN_WR    3
+  #define TFT_PIN_RD    41
+  #define TFT_PIN_RS    4
+  #define TFT_PIN_RST   6
+
+  #define TFT_PIN_D0    43
+  #define TFT_PIN_D1    44
+  #define TFT_PIN_D2    38
+  #define TFT_PIN_D3    39
+  #define TFT_PIN_D4    40
+  #define TFT_PIN_D5    41
+  #define TFT_PIN_D6    42
+  #define TFT_PIN_D7    21
+  #define TFT_PIN_D8    20
+  #define TFT_PIN_D9    19
+  #define TFT_PIN_D10   18
+  #define TFT_PIN_D11   17
+  #define TFT_PIN_D12   14
+  #define TFT_PIN_D13   13
+  #define TFT_PIN_D14   12
+  #define TFT_PIN_D15   11
+
+  #define TP_PIN_SDA    7
+  #define TP_PIN_SCL    8
+  #define TP_PIN_INT    5
+#else
+  #error "invaild core board model"
+#endif
+
 
 class LGFX : public lgfx::LGFX_Device
 {
   static constexpr int I2C_PORT_NUM = I2C_NUM_0;
-  static constexpr int I2C_PIN_SDA = 38;
-  static constexpr int I2C_PIN_SCL = 39;
-  static constexpr int I2C_PIN_INT = 40;
+  static constexpr int I2C_PIN_SDA = TP_PIN_SDA;
+  static constexpr int I2C_PIN_SCL = TP_PIN_SCL;
+  static constexpr int I2C_PIN_INT = TP_PIN_INT;
 
   lgfx::Bus_Parallel16 _bus_instance;
   lgfx::Panel_ILI9488 _panel_instance;
@@ -73,35 +167,35 @@ public:
     {
       auto cfg = _bus_instance.config();
 
-      cfg.freq_write = 40000000;
-      cfg.pin_wr = 35;
-      cfg.pin_rd = 48;
-      cfg.pin_rs = 36;
+      cfg.freq_write = 50000000;
+      cfg.pin_wr = TFT_PIN_WR;
+      cfg.pin_rd = TFT_PIN_RD;
+      cfg.pin_rs = TFT_PIN_RS;
 
-      cfg.pin_d0 = 47;
-      cfg.pin_d1 = 21;
-      cfg.pin_d2 = 14;
-      cfg.pin_d3 = 13;
-      cfg.pin_d4 = 12;
-      cfg.pin_d5 = 11;
-      cfg.pin_d6 = 10;
-      cfg.pin_d7 = 9;
-      cfg.pin_d8 = 3;
-      cfg.pin_d9 = 8;
-      cfg.pin_d10 = 16;
-      cfg.pin_d11 = 15;
-      cfg.pin_d12 = 7;
-      cfg.pin_d13 = 6;
-      cfg.pin_d14 = 5;
-      cfg.pin_d15 = 4;
+      cfg.pin_d0 = TFT_PIN_D0;
+      cfg.pin_d1 = TFT_PIN_D1;
+      cfg.pin_d2 = TFT_PIN_D2;
+      cfg.pin_d3 = TFT_PIN_D3;
+      cfg.pin_d4 = TFT_PIN_D4;
+      cfg.pin_d5 = TFT_PIN_D5;
+      cfg.pin_d6 = TFT_PIN_D6;
+      cfg.pin_d7 = TFT_PIN_D7;
+      cfg.pin_d8 = TFT_PIN_D8;
+      cfg.pin_d9 = TFT_PIN_D9;
+      cfg.pin_d10 = TFT_PIN_D10;
+      cfg.pin_d11 = TFT_PIN_D11;
+      cfg.pin_d12 = TFT_PIN_D12;
+      cfg.pin_d13 = TFT_PIN_D13;
+      cfg.pin_d14 = TFT_PIN_D14;
+      cfg.pin_d15 = TFT_PIN_D15;
       _bus_instance.config(cfg);
       _panel_instance.bus(&_bus_instance);
     }
 
     {
       auto cfg = _panel_instance.config();
-      cfg.pin_cs          =    37;
-      cfg.pin_rst         =    -1;
+      cfg.pin_cs          =    -1;
+      cfg.pin_rst         =    TFT_PIN_RST;
       cfg.pin_busy        =    -1;
       cfg.offset_rotation =     0;
       cfg.readable        =  true;
@@ -116,7 +210,7 @@ public:
     {
       auto cfg = _light_instance.config();
 
-      cfg.pin_bl = 45;
+      cfg.pin_bl = TFT_PIN_BLK;
       cfg.invert = false;
       cfg.freq   = 44100;
       cfg.pwm_channel = 7;
