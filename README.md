@@ -5,6 +5,11 @@ The original project is: [https://github.com/radiosound-com/makerfabs-parallel-t
 - Currently Supported Devices - For Comparison click [here](#currently-supported-devices)
   - [Makerfabs 16Bit Parallel TFT 3.5" ILI9488 - ESP32-S3](https://bit.ly/ESP32S335D)
   - [embeddedboys 16-bit 8080 TFT 3.5" ILI9488 display expansion board](https://gf.bilibili.com/item/detail/1105188098)
+- Currently supported core boards
+  - [x] [Nologo tech ESP32-S3 Pico](https://www.nologo.tech/product/esp32/esp32s3/esp32s3Pico/esp32S3Pico.html)
+  - [ ] [Walnutpi PicoW](https://walnutpi.com/docs/walnutpi_picow/)
+  - [x] [Unknown ESP32 S3 Dev Board A](https://item.taobao.com/item.htm?_u=21m6r7hse5f8&id=749667421699) (EOL)
+
 - Graphics & Touch Driver : [LovyanGFX](https://github.com/lovyan03/LovyanGFX)
 - UI / Widgets : [LVGL 9.1.0](https://github.com/lvgl/lvgl)
 - Framework : [ESP-IDF 5.2.3](https://github.com/espressif/esp-idf/)
@@ -13,14 +18,20 @@ The original project is: [https://github.com/radiosound-com/makerfabs-parallel-t
 
 ### 1. Clone project and update submodules
 ```bash
-git clone https://github.com/radiosound-com/makerfabs-parallel-tft-lvgl-lgfx
-cd makerfabs-parallel-tft-lvgl-lgfx
+git clone https://github.com/embeddedboys/pico_dm_qd3503728_esp32s3_idf
+cd pico_dm_qd3503728_esp32s3_idf
 git submodule update --init
 ```
 
 ### 2. Setup
 
 Tested with ESP-IDF v5.2.3. Other versions may work as well.
+
+```bash
+git clone https://github.com/espressif/esp-idf.git -b release/v5.2
+cd esp-idf
+./install.sh
+```
 
 Make sure you have esp-idf exported, e.g.:
 
