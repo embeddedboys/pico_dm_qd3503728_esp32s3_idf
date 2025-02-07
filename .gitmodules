@@ -1,6 +1,6 @@
 [submodule "components/LovyanGFX"]
 	path = components/LovyanGFX
-	url = https://github.com/radiosound-com/LovyanGFX.git
+	url = https://gitee.com/embeddedboys/LovyanGFX
 	branch = out-of-bounds
 [submodule "components/lvgl"]
 	path = components/lvgl
