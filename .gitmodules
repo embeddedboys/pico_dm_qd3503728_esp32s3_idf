@@ -4,4 +4,4 @@
 	branch = out-of-bounds
 [submodule "components/lvgl"]
 	path = components/lvgl
-	url = https://github.com/lvgl/lvgl.git
+	url = https://gitee.com/embeddedboys/lvgl.git

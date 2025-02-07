@@ -11,7 +11,7 @@ The original project is: [https://github.com/radiosound-com/makerfabs-parallel-t
   - [x] [Unknown ESP32 S3 Dev Board A](https://item.taobao.com/item.htm?_u=21m6r7hse5f8&id=749667421699) (EOL)
 
 - Graphics & Touch Driver : [LovyanGFX](https://github.com/lovyan03/LovyanGFX)
-- UI / Widgets : [LVGL 9.1.0](https://github.com/lvgl/lvgl)
+- UI / Widgets : [LVGL 9.2.0](https://github.com/lvgl/lvgl)
 - Framework : [ESP-IDF 5.2.3](https://github.com/espressif/esp-idf/)
 
 ## Get started
