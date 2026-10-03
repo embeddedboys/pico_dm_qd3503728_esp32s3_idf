@@ -151,7 +151,7 @@ static void init_lvgl_lgfx()
     lv_indev_set_read_cb(indev_drv, touchpad_read);
 }
 
-extern "C" void app_main(void)
+extern "C" void lvgl_demo_run(void)
 {
     init_lvgl_lgfx();
 

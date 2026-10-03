@@ -1,0 +1,11 @@
+menu "PUD device"
+
+    config PUD_LVGL_DEMO
+        bool "Run the original LVGL demo instead of the PUD device firmware"
+        default n
+        help
+            Keeps the vendor demo (LovyanGFX + LVGL 9 demo selector) buildable
+            as a known-good reference for the display/touch hardware.  Default
+            is the PUD device firmware.
+
+endmenu

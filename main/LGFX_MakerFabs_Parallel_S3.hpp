@@ -107,14 +107,17 @@
 
 class LGFX : public lgfx::LGFX_Device
 {
+#ifndef PUD_BOARD_NO_TOUCH
   static constexpr int I2C_PORT_NUM = I2C_NUM_0;
   static constexpr int I2C_PIN_SDA = TP_PIN_SDA;
   static constexpr int I2C_PIN_SCL = TP_PIN_SCL;
   static constexpr int I2C_PIN_INT = TP_PIN_INT;
+#endif
 
   lgfx::Bus_Parallel16 _bus_instance;
   lgfx::Panel_ILI9488 _panel_instance;
   lgfx::Light_PWM     _light_instance;
+#ifndef PUD_BOARD_NO_TOUCH
   lgfx::ITouch*  _touch_instance_ptr = nullptr;
 
   /// Detects and configures the touch panel during initialization;
@@ -159,6 +162,7 @@ class LGFX : public lgfx::LGFX_Device
     }
     return lgfx::LGFX_Device::init_impl(use_reset, use_clear);
   }
+#endif /* PUD_BOARD_NO_TOUCH */
 
 public:
 
