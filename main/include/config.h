@@ -25,10 +25,13 @@ enum tft_rotation {
 	TFT_ROTATE_270 = 0x03,
 };
 
-/* Touch (FT6236 on the display board, I2C 0x38).  INDEV_DRV_NOT_USED flips to
- * 0 together with the EP4 implementation; while 1 the capability report says
- * "no touch" and the host must not register an input device. */
-#define INDEV_DRV_NOT_USED 1
+/* Touch controller selection is automatic: FT6236 at 0x38 is preferred, then
+ * TSC2007 at 0x48. Both use the original FT6236 wiring. */
+#define INDEV_DRV_NOT_USED 0
+#define TSC2007_I2C_ADDR 0x48
+#define TSC2007_PIN_SDA 7
+#define TSC2007_PIN_SCL 8
+#define TSC2007_PIN_IRQ 5
 #define INDEV_POLLING_PERIOD_MS 10
 
 /* Active area in mm, 0 = unknown (the RP2350 build ships 0 for this panel
@@ -39,11 +42,7 @@ enum tft_rotation {
 /* Decoder selection: DECODER_USE_QOI (3).  The value is protocol-visible. */
 #define DECODER_TYPE 3
 
-/* Largest single EP1 transfer, header included: 32 KB profile (the RP2040
- * tier).  Sizes ep1_read_buffer and each of the 3 decoder frame slots
- * (128 KB static RAM total); ESP32-S3 runs this board without PSRAM because
- * the panel's data bus sits on the octal-PSRAM pins.  The definition itself
- * lives in usb/usbd_vendor.h (PUD_MAX_TRANSFER), next to the other protocol
- * constants. */
+/* The ESP32-S3-PICO SiP provides internal Octal PSRAM.  The panel remains
+ * on its existing 16-bit hardware bus; decoder frame slots live in PSRAM. */
 
 #endif /* __PUD_BOARD_CONFIG_H */

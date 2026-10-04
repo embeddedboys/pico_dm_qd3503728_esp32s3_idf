@@ -53,6 +53,10 @@ CONFIG_LV_USE_DEMO_FLEX_LAYOUT=y
 CONFIG_LV_USE_DEMO_MULTILANG=y
 CONFIG_CHERRYUSB=y
 CONFIG_CHERRYUSB_DEVICE=y
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
 # Console UART0 TX routed to the Pico header's GP16 position (ESP32 GPIO42,
 # same header pin the RP2350 PUD build uses for its debug UART).  RX stays on
 # the default GPIO44 (free on this board); GP17/GPIO41 is the panel's RD line.

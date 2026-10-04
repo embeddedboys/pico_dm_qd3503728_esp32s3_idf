@@ -51,7 +51,9 @@
 #endif
 
 /* Whole panel rows per accumulation buffer, two of them ping-ponged. */
-#define QOI_BATCH_PIXELS (TFT_HOR_RES * QOI_BUF_ROWS)
+#define QOI_MAX_LOGICAL_WIDTH \
+	((TFT_HOR_RES > TFT_VER_RES) ? TFT_HOR_RES : TFT_VER_RES)
+#define QOI_BATCH_PIXELS (QOI_MAX_LOGICAL_WIDTH * QOI_BUF_ROWS)
 static uint16_t qoi_buf_a[QOI_BATCH_PIXELS];
 #if PUD_DECODER_PINGPONG
 static uint16_t qoi_buf_b[QOI_BATCH_PIXELS];
@@ -100,13 +102,10 @@ void qoi_drawimg(u16 xs, u16 ys, u16 xe, u16 ye, u8 *qoi_data, u32 qoi_size)
 	uint16_t width = xe - xs + 1;
 	size_t buf_cap;
 
-	ESP_LOGI("qoi", "drawimg rect (%u,%u)-(%u,%u) qoi_size=%u",
-	         xs, ys, xe, ye, qoi_size);
-
 	if (qoi_data == NULL || qoi_size == 0 || width == 0 ||
-	    width > TFT_HOR_RES) {
-		ESP_LOGW("qoi", "reject: width %u > native %u", width,
-		         (unsigned)TFT_HOR_RES);
+	    width > g_pud_data.disp.xres) {
+		ESP_LOGW("qoi", "reject: width %u > logical %u", width,
+		         (unsigned)g_pud_data.disp.xres);
 		return;
 	}
 
@@ -135,8 +134,6 @@ void qoi_drawimg(u16 xs, u16 ys, u16 xe, u16 ye, u8 *qoi_data, u32 qoi_size)
 
 			if (rgb565_qoi_decompress(qoi_data, qoi_size, buf,
 			                          rect_px) == rect_px) {
-				ESP_LOGI("qoi", "decoded %u px -> flush",
-				         (unsigned)rect_px);
 				tft_async_video_flush(xs, ys, xe, ye, buf,
 				                      rect_px * 2);
 #if QOI_NONCALLBACK >= 2

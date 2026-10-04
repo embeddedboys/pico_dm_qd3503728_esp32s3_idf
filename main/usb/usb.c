@@ -335,7 +335,7 @@ void pud_params_apply(const struct pud_params *p)
 		g_pud_data.disp.rotation = rot;
 		/* The frame the panel is driven in follows the rotation, and
 		 * the host builds its mode from what it reads back here. */
-		if ((rot ^ TFT_ROTATION) & 1) {
+		if (rot & 1) {
 			g_pud_data.disp.xres = TFT_VER_RES;
 			g_pud_data.disp.yres = TFT_HOR_RES;
 		} else {

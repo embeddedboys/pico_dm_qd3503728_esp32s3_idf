@@ -30,6 +30,8 @@
 
 #include "esp_mac.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "pud.h"
 #include "decoder.h"
@@ -79,8 +81,13 @@ static void pud_config_init(void)
 	data->sn[6] = mac[0] ^ mac[2] ^ mac[4];
 	data->sn[7] = mac[1] ^ mac[3] ^ mac[5];
 
-	data->disp.xres = TFT_HOR_RES;
-	data->disp.yres = TFT_VER_RES;
+	if (TFT_ROTATION & 1) {
+		data->disp.xres = TFT_VER_RES;
+		data->disp.yres = TFT_HOR_RES;
+	} else {
+		data->disp.xres = TFT_HOR_RES;
+		data->disp.yres = TFT_VER_RES;
+	}
 	data->disp.rotation = TFT_ROTATION;
 	data->disp.intf_type = 0;
 	data->disp.pixelclock_khz = TFT_BUS_CLK_KHZ;
@@ -150,9 +157,31 @@ void pud_touch_poll(void)
 
 void pud_init(void)
 {
+	ESP_LOGI(TAG, "init: display begin");
 	tft_driver_init();
+	ESP_LOGI(TAG, "init: display ready");
 	backlight_driver_init();
+	ESP_LOGI(TAG, "init: backlight ready");
+	if (!INDEV_DRV_NOT_USED && indev_driver_init() != 0)
+		ESP_LOGW(TAG, "touch driver initialization failed");
+	ESP_LOGI(TAG, "init: touch ready");
 	decoder_init();
+	ESP_LOGI(TAG, "init: decoder ready");
 
 	pud_config_init();
+}
+
+static void touch_task(void *arg)
+{
+	(void)arg;
+	for (;;) {
+		pud_touch_poll();
+		vTaskDelay(pdMS_TO_TICKS(INDEV_POLLING_PERIOD_MS));
+	}
+}
+
+void pud_touch_task_start(void)
+{
+	if (!INDEV_DRV_NOT_USED)
+		xTaskCreate(touch_task, "touch", 3072, NULL, 5, NULL);
 }

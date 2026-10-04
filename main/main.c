@@ -31,6 +31,7 @@ void app_main(void)
 	              "console moves here, UART0 TX=GPIO42)");
 
 	pud_init();
+	pud_touch_task_start();
 	usb_device_init();
 
 	ESP_LOGI(TAG, "PUD device up: %ux%u, decoder QOI, frame_max %u",

@@ -235,5 +235,6 @@ void pud_get_ro_disp_pixelclock_khz(u16 *ptr, int len);
 /* One touch poll: push an EP4 report if there is something to say.
  * Called from the indev task every polling_period ms. */
 void pud_touch_poll(void);
+void pud_touch_task_start(void);
 
 #endif /* __PUD_H */

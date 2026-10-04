@@ -41,6 +41,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_attr.h"
 #include "freertos/semphr.h"
 
 static const char *TAG = "decoder";
@@ -62,7 +63,7 @@ struct decoder_frame {
 	u8 data[DECODER_FRAME_MAX];
 };
 
-static struct decoder_frame s_frames[DECODER_FRAME_SLOTS];
+EXT_RAM_BSS_ATTR static struct decoder_frame s_frames[DECODER_FRAME_SLOTS];
 /* Slots are handed out lowest-free-first and drained in index order (the
  * RP2350 build tried a round-robin cursor pair and stalled the pipeline
  * under a full-screen load -- same model kept here). */
@@ -202,9 +203,9 @@ void decoder_init(void)
 
 	s_decoder_sem = xSemaphoreCreateBinary();
 
-	created = xTaskCreate(decoder_task, "decoder_task",
-	                      DECODER_TASK_STACK_BYTES, NULL,
-	                      tskIDLE_PRIORITY + 1, NULL);
+	created = xTaskCreatePinnedToCore(decoder_task, "decoder_task",
+	                                 DECODER_TASK_STACK_BYTES, NULL,
+	                                 tskIDLE_PRIORITY + 1, NULL, 1);
 	if (created != pdPASS) {
 		/* Without this the failure is silent from both ends: bands are
 		 * accepted until the slots fill, and then nothing drains one,
