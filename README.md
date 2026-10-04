@@ -1,5 +1,11 @@
 # makerfabs-parallel-tft-lvgl-lgfx porting for Pico_DM_QD3503728
 
+> **本仓现在跑的是 PUD 设备端固件**（Pico-USB-Display 设备侧），不是原厂的 LVGL demo。
+> 接手先读 [`HANDOFF.md`](HANDOFF.md)（现状/下一步）与 [`AGENTS.md`](AGENTS.md)（硬约束），
+> 实测知识库在 [`notes/`](notes/README.md)。**本板 PSRAM 必须关闭**，否则无限重启 ——
+> 原因见 [notes/psram-pin-conflict.md](notes/psram-pin-conflict.md)。
+> 下面是从上游模板继承的构建/引脚/致谢内容，仅引脚表与克隆步骤仍然有用。
+
 The original project is: [https://github.com/radiosound-com/makerfabs-parallel-tft-lvgl-lgfx](https://github.com/radiosound-com/makerfabs-parallel-tft-lvgl-lgfx)
 
 - Currently Supported Devices - For Comparison click [here](#currently-supported-devices)

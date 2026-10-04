@@ -1,152 +1,82 @@
-# 交接文档：PUD 移植到 ESP32-S3
+# HANDOFF —— ESP32-S3 移植交接
 
-> 当前优先级是独立 `s3_smoke` 基础设施验证；PUD 显示和触摸回归暂时暂停。
+> **当前状态：这块板子上的 PUD 固件能完整启动并画出 QOI bootlogo（人眼确认 ✓），
+> 一键升级不需要按 BOOT ✓；唯一没做的验证是"主机发帧之后的实际显示效果"。**
+> 本板 PSRAM **必须关闭**（原因见 [notes/psram-pin-conflict.md](notes/psram-pin-conflict.md)）。
 
-最后核对：2026-10-05。当前板上运行的是 smoke 固件。
+## 1. 现状
 
-## 当前结论
+| 项 | 状态 |
+|---|---|
+| 启动 | `PUD device up: 480x320, decoder QOI, frame_max 32768` ✓ |
+| 显示 | 开机在背光之前画完 QOI bootlogo（480x320）✓ 人眼确认 |
+| 烧写 | `./scripts/flash-recover.sh` 一键升级，**不需要按 BOOT** ✓ |
+| PSRAM | **关闭**（硬约束，非偏好）✗ 8 MB 用不了 |
+| 解码 | QOI（`DECODER_TYPE=3`），decoder task 固定 **CPU1**，3 个 32 KB 帧槽 |
+| 触摸 | TSC2007 EP4 已验（按下/释放/坐标）✓；FT6236 代码保留但真机未回归 ✗ |
+| 未验证 | 主机发帧后的显示效果、caps 的完整回读、内核驱动联调 |
 
-- `/dev/ttyACM0` 是当前已验证可用的 USB Serial/JTAG 烧录口。
-- `/dev/ttyUSB0` 是 CH340 连接的物理 UART0，当前用于日志；已观察到 smoke 固件日志。
-- smoke 固件也通过 `/dev/ttyACM0` 输出日志；看到此接口不能单独判定为 ROM 下载态。
-- smoke 固件在 ESP32-S3 双核 240 MHz、Octal PSRAM 配置下持续运行，没有观察到重启。
-- PUD 固件仍保留 ILI9488 16 位总线、FT6236 支持和 TSC2007 支持；没有改成 8 位总线。
+板的实测知识库：`notes/`（索引 `notes/README.md`）；必须遵守的约束：`AGENTS.md`。
 
-## 硬件与端口
+## 2. 硬件与端口
 
-| 项目 | 当前结论 |
-| --- | --- |
-| 芯片 | ESP32-S3，实测 revision v0.2，内置 8 MB PSRAM |
-| 烧录 | `/dev/ttyACM0`，USB Serial/JTAG；`idf.py flash` 自动复位并校验 |
-| 物理串口 | `/dev/ttyUSB0`，CH340，UART0，115200 baud |
-| UART0 TX/RX | smoke 配置为 TX GPIO42、RX GPIO44 |
-| 显示 | ILI9488，LovyanGFX，16 位并口，逻辑尺寸 480x320 |
-| 触摸 | FT6236 保留；TSC2007 地址 `0x48`，共享原 FT6236 的 SDA/SCL/IRQ 引脚 |
+| 项 | 值 |
+|---|---|
+| 芯片 | ESP32-S3，revision **v0.2**，240 MHz 双核，内置 **8 MB octal PSRAM（不可用）** |
+| 显示 | ILI9488，LovyanGFX `Bus_Parallel16`，16 位 8080，逻辑 `480x320`（`TFT_ROTATION=1`）|
+| 触摸 | FT6236(0x38) / TSC2007(0x48)，共用 SDA/SCL/IRQ = GPIO7/8/5，10 ms 轮询 |
+| 烧写口 | **`/dev/ttyACM0`**（USB Serial/JTAG，应用态 VID/PID `303a:3503`）|
+| 日志口 | `/dev/ttyUSB0`（CH340，UART0）；console TX = **GPIO42**（RX 配置 41，面板 RD 已让出）|
+| 独立自检 | `tests/s3_smoke` + `scripts/s3-smoke.sh`（见 [notes/smoke-tests.md](notes/smoke-tests.md)）|
 
-物理 UART 下载在 ESP32-S3 ROM 协议层面存在，但必须手动按 BOOT+RESET 进入 UART
-下载模式，且须确认 TX/RX 接线符合 ROM UART 引脚要求；应用 UART GPIO 配置不代表 ROM 配置。
-此前用 `esptool` 访问 `/dev/ttyUSB0`，结果为
-`No serial data received`；因此“可以通过 UART 下载”仍是未完成的硬件验证，不能作为
-默认烧录流程。
-
-## 独立 smoke 工程
-
-位置：`tests/s3_smoke`，脚本：`scripts/s3-smoke.sh`。
-
-测试内容：
-
-- 芯片、revision、CPU、Flash、reset reason 信息；
-- Octal PSRAM 分配、读写校验和简单 `memset` 吞吐；
-- CPU0/CPU1 任务调度和周期性内存心跳。
-
-配置为 240 MHz、Octal PSRAM 80 MHz、16 MB Flash header、双核 FreeRTOS。
-
-已验证：
-
-- `./scripts/s3-smoke.sh flash` 通过 `/dev/ttyACM0` 成功构建并烧录；
-- `esptool` 识别到 ESP32-S3、内置 8 MB PSRAM，写入内容 hash 校验通过；
-- `/dev/ttyUSB0` 收到 `s3_smoke` heartbeat，`core0` 和 `core1` 同步递增；
-- 观察到 internal free 约 365 KB、PSRAM free 约 8189 KB，无连续重启。
-
-启动早期的 chip-info/PSRAM PASS 行在本次监听开始前已经错过，因此 PSRAM
-读写校验和吞吐数值仍应重新捕获；当前只能确认运行期 PSRAM 余量和双核任务正常。
-
-复现命令：
+## 3. 构建与烧写
 
 ```bash
-source ~/esp/esp-idf/export.sh
-./scripts/s3-smoke.sh build
-./scripts/s3-smoke.sh flash                 # 默认 /dev/ttyACM0
-ESP_MONITOR_PORT=/dev/ttyUSB0 ./scripts/s3-smoke.sh monitor
+source ~/esp/esp-idf/export.sh          # IDF v5.2.x
+idf.py build
+./scripts/flash-recover.sh              # 探口 → 必要时发 magic → idf.py flash
+./scripts/flash-recover.sh --probe      # 只报告
 ```
 
-脚本支持显式覆盖端口，但 `/dev/ttyUSB0` 烧录只有在板子已进入 UART ROM 下载模式后
-才应尝试：
+细节（三条恢复路径、为什么 UART 那条不通、别用 `esptool --before usb_reset`）见
+[notes/build-flash-recovery.md](notes/build-flash-recovery.md)。
 
-```bash
-ESP_FLASH_PORT=/dev/ttyUSB0 ./scripts/s3-smoke.sh flash
-```
+## 4. 关键决策（改前先读 notes）
 
-## PUD 当前状态
+- USB 栈用 **CherryUSB v1.5.2**（`components/`，vendored，未改动；CMake 侧只加了
+  IDF ≥5.2 的 `DRAM_DMA_ALIGNED_ATTR` 适配）。
+- EP1 **3 个帧槽 + 背压**：槽满不重新武装 endpoint，让主机等（不丢帧）。
+  解码**不在 USB 中断里做**（会 HardFault），全部由 decoder task 承担。
+- 只启用 **QOI**；帧槽在内部 RAM ⇒ `PUD_MAX_TRANSFER` = **32 KB**（64 KB 会
+  `dram0_0_seg overflowed`），`frame_max` 由 caps 上报，主机自适应。
+- Console TX 走 **GPIO42**；**GPIO41/GP17 是面板 RD**，当前已 `cfg.pin_rd = -1` 让出。
+- `CONFIG_PUD_LVGL_DEMO`（`main/Kconfig`）保留原厂 LVGL demo 作为硬件对照路径，
+  与 PUD 路径二选一。
 
-| 阶段 | 状态 | 说明 |
-| --- | --- | --- |
-| 环境与 LVGL 硬件基线 | 已完成 | 原厂 demo 曾验证显示和触摸 |
-| CherryUSB 枚举与协议查询 | 已完成 | VID/PID `303a:3503`，协议 v2，QOI |
-| QOI/ILI9488 图像通路 | 待重新验证 | 旧黑屏问题曾定位为旋转后几何使用不一致 |
-| FT6236 / TSC2007 EP4 | 待重新验证 | 两套驱动代码均保留 |
-| 内核驱动联调 | 待开始 | 需要确认驱动端 `303a:3503` 支持 |
+## 5. 下一步
 
-历史显示、TSC2007 EP4 和性能基线见 [显示与触摸](notes/display-touch.md)、
-[性能实测](notes/performance.md)。这些结果不证明当前 PSRAM/双核版本已通过回归。
+1. **验证主机发帧后的显示效果**（唯一的空白）：接主机 → `GET_CAPS` 回读全部字段 →
+   发一帧局部刷新 + 一帧全屏，确认画面与 `dropped == 0`。
+2. 增加 **decoder/EP1 计数器查询**（`submitted/drawn/dropped`），便于无调试器验收。
+3. **FT6236 真机回归**（当前只有 TSC2007 验过）。
+4. 评估**减少全屏分带次数**并重测 FPS（当前全屏 15 分带只有 ~6 FPS，瓶颈是每带开销，
+   见 [notes/performance.md](notes/performance.md)）。
+5. 内核驱动联调（确认驱动端支持 `303a:3503`），并同步两侧协议文档。
+6. 可选：给 CH340 的 DTR/RTS 接上 EN/GPIO0（两管两阻）⇒ 连"应用崩在 USB 里"也能自动恢复。
 
-当前 PUD 启用 Octal PSRAM 后曾发生 WDT 反复重启，日志已确认 PSRAM 初始化和内存
-测试成功，并进入 `app_main()`/`pud_init()`；具体阻塞点尚未定位。初始化阶段日志已保留。
-smoke 心跳正常不能证明 PUD 初始化问题已解决。
+## 6. 工作区约束
 
-代码当前使用旋转后的 `480x320` 逻辑几何填充能力报告和 QOI 宽度校验，
-`PUD_MAX_TRANSFER=65536`，解码任务固定 CPU1。这一版本仍需重新烧录回归。
-面板硬件保持 16 位并口，不能通过软件改成 8 位并口；引脚与 PSRAM 冲突不是已证实结论。
+- **未经明确指令不要 `git commit` / `git push`**；提交用 `git commit -s`，
+  摘要 kernel 风格 `子系统: 祈使句`（身份沿用仓库既有作者）。
+- 不要删除或覆盖未提交修改、`notes/`、`tests/`；**探针代码提交前清干净**。
+- 不要把 `/dev/ttyUSB0` 当默认烧写口；不要动 ILI9488 的 **16 位**硬件总线
+  （软件改不成 8 位并口）。
+- 不提交本机路径、代理、口令、临时设备状态。
 
-## PUD 关键决策
+## 7. 为什么这个移植停在这里（给下一任的判断）
 
-- USB 栈使用 CherryUSB v1.5.2，设备 VID/PID 为 `0x303A:0x3503`。
-- EP1 使用 3 个帧槽；槽忙时不重新武装 endpoint，采用 NAK 背压。
-- v1 只启用 QOI（`DECODER_TYPE=3`），帧槽放在 ESP32-S3 Octal PSRAM。
-- UART0 TX 使用 GPIO42；不要将屏幕 RD 所在 GPIO41/GP17 当作串口线。
-- `CONFIG_PUD_LVGL_DEMO` 保留为可选硬件对照路径。
-
-## 下一步
-
-1. 重新捕获 smoke 固件启动头，记录 chip/Flash/PSRAM/PSRAM throughput PASS。
-2. 保持 PUD 暂停；如继续 UART ROM 下载实验，先核对 ROM 引脚接线，再手动 BOOT+RESET。
-   默认烧录仍使用用户指定的 `ttyACM0`。
-3. 恢复 PUD 时，先通过 `ttyACM0` 烧录并定位初始化 WDT，再用屏幕验证 ILI9488 图像通路。
-4. 最后验证 FT6236 和 TSC2007 的 EP4 按下、移动、释放事件。
-
-## 工作区约束
-
-- 不要删除或覆盖现有未提交修改、`notes/`、`tests/` 和失败构建留档。
-- 不要把 ttyUSB0 当作默认烧录口；默认使用 ttyACM0。
-- 不要改变 ILI9488 的 16 位硬件总线。
-- 不要提交本机路径、代理、口令或临时设备状态。
-
-
----
-
-## 2026-10-05 更新：无限重启已解决，PSRAM 关闭
-
-### 结论（决定性）
-
-板子的无限重启**不是显示驱动的问题**，而是 **octal PSRAM 抢了面板的 D8-D12**：
-本板 PSRAM 在芯片封装内且为 octal，而 S3 的 octal 数据线在 IO_MUX 里只有
-**GPIO33-37** 这一组（IDF `soc/io_mux_reg.h` 的 `FUNC_GPIO33_SPIIO4=4` …
-`FUNC_GPIO37_SPIDQS=4`；`soc/spi_pins.h` 明确说这组不可改路），
-NOLOGO 板型的面板数据线 D8-D12 正好在那 5 个脚上 ⇒
-`Bus_Parallel16::_init_pin()` 把 PSRAM 总线抢走，CPU 停在一次永不完成的
-cache miss 上，1.2 s 后被中断看门狗复位。
-
-对照实验：`CONFIG_SPIRAM=y` 必死循环 ✗；关闭后完整启动、200 s 以上零复位 ✓。
-`CONFIG_SPIRAM_MODE_QUAD=y` 也不行（`quad_psram: PSRAM ID read error` → abort）
-⇒ 封装内确实是 octal，**"8 MB PSRAM + 16-bit 并口屏"在这块板上互斥**。
-
-### 现在的状态
-
-- 固件：完整启动 + 显示 QOI bootlogo（人眼已确认）+ 一键升级不按 BOOT ✓
-- `CONFIG_SPIRAM` 关闭；`PUD_MAX_TRANSFER` = **32 KB**（internal DRAM 才放得下；
-  64 KB 会 `dram0_0_seg overflowed by 79464 bytes`）
-- `frame_max` 由原来的 65536 变为 **32768**，主机读 `PUD_CMD_GET_CAPS` 自适应
-- 未验证：主机发帧之后的实际显示效果
-
-### 为什么这个移植停在这里（给下一任的判断）
-
-12 Mbps 全速 USB 是 PUD 整条路线的共同天花板（RP2350 也一样），本移植在带宽上
-提供不了新信息；而它唯一可能领先的地方（LCD_CAM i80 纯 DMA 写屏 ⇒ 多帧流水线）
-恰好被"PSRAM 与面板抢引脚"钉死。继续投入的价值低于换平台。
-
-### ESP32-P4（下一个项目）能继承什么
-
-见 `AGENTS.md` §7。要点：主机侧协议、`flash-recover.sh` + `boot_request.c` 的
-一键下载态、decoder 分层、以及 §5 的调试方法论可以直接搬；但 P4 有**硬件 JPEG**
-（"CPU 软解越强越好"的前提变了）、**HS USB**（带宽不再是天花板）、
-**MIPI-DSI/RGB** 面板接口（LCD_CAM 那套经验不适用），这三点要重新设计。
+12 Mbps **Full-Speed USB** 是 PUD 整条路线共同的天花板（RP2350 版也一样），
+本移植在带宽上提供不了新信息；而它本来可能领先的地方（LCD_CAM i80 纯 DMA 写屏 ⇒
+多帧流水线）恰好被"**PSRAM 与面板抢引脚**"钉死。继续投入的价值低于换平台 ——
+所以下一步是 ESP32-P4（硬件 JPEG、HS USB、32 MB PSRAM 无引脚冲突），
+能继承什么见 `AGENTS.md` §7。
