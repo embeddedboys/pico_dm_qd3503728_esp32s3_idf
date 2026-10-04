@@ -36,3 +36,30 @@ ILI9488 原生几何是 `320x480`，旋转后的协议几何是 `480x320`。QOI 
 - 不要在每帧路径加入串口打印，会改变吞吐和时序。
 - 协议字段改动必须同步 `PUD-kernel-drivers/notes/usb-protocol.md`。
 - 运行时清除 Flash 头部进入 ROM 下载态尚未实现，不能作为现有烧录流程替代。
+
+
+---
+
+## PUD 初始化重启：真凶是 PSRAM 抢引脚（2026-10-05 定案）
+
+本节旧内容把"启动即重启"归在显示/触模/日志上，**实测已全部证伪** ✗。
+真凶是 **octal PSRAM 与面板数据线抢 GPIO33-37**：
+
+- 判据一：`esp_reset_reason()==5`（INT_WDT）；挂住点由 `RTC_NOINIT` 面包屑定位在
+  "主任务进 `ESP_LOGI` 没出来"，前面所有初始化（显示、背光、触模、decoder flush）
+  **都正常返回** ✓ ⇒ 与显示代码无关；
+- 判据二：`CONFIG_SPIRAM=y` 必卡死循环 ✗ / 关闭后 200 s 以上零复位 ✓；
+- 判据三：quad 模式 `PSRAM ID read error … wrong PSRAM line mode` → abort ✗
+  ⇒ 封装内 PSRAM 是 octal；
+- 判据四：IDF 头文件确认 octal 数据线只能是 GPIO33-37，而面板 D8-D12 正在那里。
+
+⇒ 这块板子上 PSRAM 与 16-bit 并口屏**互斥**，见 `AGENTS.md` §2。
+
+## 别用 USB 层复位（新增，血的教训）
+
+- `esptool --before usb_reset` ✗✗：实测打死主机 xHCI 控制器
+  （`xHCI host not responding to stop endpoint command` → `HC died`），
+  板子+CH340 一起消失，必须物理重插并重绑控制器或重启主机。
+- `usb.core.find(...).reset()` ✗：同样把设备踢下总线。
+- 要复位/进下载态：用 `scripts/flash-recover.sh`（发 magic 让应用自己重启），
+  或普通的 `esptool chip_id`（`default_reset` / `hard_reset`）。

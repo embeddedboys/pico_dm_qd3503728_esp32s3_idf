@@ -64,3 +64,24 @@ PY
 
 当前可靠方法是按住 BOOT 后按 RESET，再执行 `idf.py -p /dev/ttyACM0 flash`。
 运行时自动清除 Flash 头部并重启进入 ROM 下载模式尚未实现，不能作为现有烧录流程的替代方案。
+
+
+---
+
+## 一键升级（2026-10-05 起：正常情况下不需要按 BOOT）
+
+```bash
+./scripts/flash-recover.sh            # 探测 → 必要时请应用进下载态 → idf.py flash
+./scripts/flash-recover.sh --probe    # 只报告哪个口可用
+```
+
+应用占用 USB-OTG（GPIO19/20）后 `/dev/ttyACM*` 会消失（与 USB-Serial-JTAG 共用
+引脚），此时脚本会向 `/dev/ttyUSB*` 发 `PUD-BOOT\n`，由 `main/boot_request.c`
+置 `RTC_CNTL_FORCE_DOWNLOAD_BOOT` 并重启，芯片回到 ROM 下载态后再烧。
+实测：3 次 `Hash of data verified` + `Done`，全程不按 BOOT ✓（详见
+`notes/flash-recovery.md`）。
+
+**PSRAM 已关闭**（原因见 `AGENTS.md` §2 / `notes/pitfalls.md`）：如果哪天把它打开，
+面板的数据线会被 PSRAM 抢走 ⇒ 无限重启。改 `sdkconfig.defaults` 时留意这一点。
+
+**不要用 `esptool --before usb_reset`**（会打死主机 USB 控制器，见 pitfalls）。

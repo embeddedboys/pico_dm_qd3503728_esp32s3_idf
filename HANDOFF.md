@@ -110,3 +110,43 @@ smoke 心跳正常不能证明 PUD 初始化问题已解决。
 - 不要把 ttyUSB0 当作默认烧录口；默认使用 ttyACM0。
 - 不要改变 ILI9488 的 16 位硬件总线。
 - 不要提交本机路径、代理、口令或临时设备状态。
+
+
+---
+
+## 2026-10-05 更新：无限重启已解决，PSRAM 关闭
+
+### 结论（决定性）
+
+板子的无限重启**不是显示驱动的问题**，而是 **octal PSRAM 抢了面板的 D8-D12**：
+本板 PSRAM 在芯片封装内且为 octal，而 S3 的 octal 数据线在 IO_MUX 里只有
+**GPIO33-37** 这一组（IDF `soc/io_mux_reg.h` 的 `FUNC_GPIO33_SPIIO4=4` …
+`FUNC_GPIO37_SPIDQS=4`；`soc/spi_pins.h` 明确说这组不可改路），
+NOLOGO 板型的面板数据线 D8-D12 正好在那 5 个脚上 ⇒
+`Bus_Parallel16::_init_pin()` 把 PSRAM 总线抢走，CPU 停在一次永不完成的
+cache miss 上，1.2 s 后被中断看门狗复位。
+
+对照实验：`CONFIG_SPIRAM=y` 必死循环 ✗；关闭后完整启动、200 s 以上零复位 ✓。
+`CONFIG_SPIRAM_MODE_QUAD=y` 也不行（`quad_psram: PSRAM ID read error` → abort）
+⇒ 封装内确实是 octal，**"8 MB PSRAM + 16-bit 并口屏"在这块板上互斥**。
+
+### 现在的状态
+
+- 固件：完整启动 + 显示 QOI bootlogo（人眼已确认）+ 一键升级不按 BOOT ✓
+- `CONFIG_SPIRAM` 关闭；`PUD_MAX_TRANSFER` = **32 KB**（internal DRAM 才放得下；
+  64 KB 会 `dram0_0_seg overflowed by 79464 bytes`）
+- `frame_max` 由原来的 65536 变为 **32768**，主机读 `PUD_CMD_GET_CAPS` 自适应
+- 未验证：主机发帧之后的实际显示效果
+
+### 为什么这个移植停在这里（给下一任的判断）
+
+12 Mbps 全速 USB 是 PUD 整条路线的共同天花板（RP2350 也一样），本移植在带宽上
+提供不了新信息；而它唯一可能领先的地方（LCD_CAM i80 纯 DMA 写屏 ⇒ 多帧流水线）
+恰好被"PSRAM 与面板抢引脚"钉死。继续投入的价值低于换平台。
+
+### ESP32-P4（下一个项目）能继承什么
+
+见 `AGENTS.md` §7。要点：主机侧协议、`flash-recover.sh` + `boot_request.c` 的
+一键下载态、decoder 分层、以及 §5 的调试方法论可以直接搬；但 P4 有**硬件 JPEG**
+（"CPU 软解越强越好"的前提变了）、**HS USB**（带宽不再是天花板）、
+**MIPI-DSI/RGB** 面板接口（LCD_CAM 那套经验不适用），这三点要重新设计。
