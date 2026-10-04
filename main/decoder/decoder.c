@@ -38,6 +38,7 @@
 #include "pud.h" /* PUD_EP1_HEADER_SIZE, the EP1 framing */
 
 #include "esp_log.h"
+#include "bootlogo_qoi.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -63,7 +64,15 @@ struct decoder_frame {
 	u8 data[DECODER_FRAME_MAX];
 };
 
-EXT_RAM_BSS_ATTR static struct decoder_frame s_frames[DECODER_FRAME_SLOTS];
+/* PSRAM 关掉时不能再用 ext_ram 段（那时 GPIO33-37 要给面板的 D8-D12，
+ * 见 notes/bootloop-investigation.md）。 */
+#if defined(CONFIG_SPIRAM) && CONFIG_SPIRAM
+#define DECODER_FRAME_ATTR EXT_RAM_BSS_ATTR
+#else
+#define DECODER_FRAME_ATTR
+#endif
+
+DECODER_FRAME_ATTR static struct decoder_frame s_frames[DECODER_FRAME_SLOTS];
 /* Slots are handed out lowest-free-first and drained in index order (the
  * RP2350 build tried a round-robin cursor pair and stalled the pipeline
  * under a full-screen load -- same model kept here). */
@@ -139,9 +148,22 @@ static void decoder_task(void *param)
 	 * applied here, before anything is drawn. */
 	pud_params_flush_display();
 
-	/* No boot logo in this build yet (the RP2350 original draws a
-	 * QOI-compressed one baked into the firmware); the first host frame
-	 * paints the screen.  TODO: generate one with pudcodec. */
+	/* Boot logo, the same 480x320 QOI stream the RP2350 original draws
+	 * (see bootlogo_qoi.h).  It goes up before the backlight so nothing
+	 * half-painted is ever visible, and it is drawn through the same
+	 * async flush the host frames use, so its transfer is finished by the
+	 * wait below before anything else touches the bus.
+	 *
+	 * qoi_drawimg refuses an image wider than g_pud_data.disp.xres, and that
+	 * is still 0 when this task starts -- pud_config_init() sets it a few ms
+	 * later.  Poll for it rather than guessing a delay. */
+	while (g_pud_data.disp.xres == 0)
+		vTaskDelay(pdMS_TO_TICKS(5));
+
+	qoi_drawimg(0, 0, BOOTLOGO_WIDTH - 1, BOOTLOGO_HEIGHT - 1,
+	            (u8 *)bootlogo_qoi, BOOTLOGO_QOI_SIZE);
+	tft_async_video_wait();
+
 	backlight_set_level(100);
 	ESP_LOGI(TAG, "decoder task up, backlight 100%%");
 
