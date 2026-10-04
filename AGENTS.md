@@ -21,8 +21,9 @@ PUD（Pico-USB-Display）设备端固件的 **ESP32-S3 移植**。本文件是�
 - **一轮只做一件事**；诊断用的探针代码**提交前必须清干净**（临时开关、
   面包屑、额外日志、被 sed 出来的格式改动都算）。
 - 仓库里不写绝对主机路径 / IP / 私有设备名。
-- `notes/` 是知识库：把**实测**与**猜测**分开写，证据分级 ✓（实测通过）/
-  ✗（实测否定），别把探针当结果。
+- `notes/` 是知识库，**按工作区的 developer-knowledge skill 维护**（首屏给结论、
+  事实分级 ✓/✗、一文档一问题、信息预算 150 行、更新用合并重写、每次改都做**漂移检查**）；
+  索引在 `notes/README.md`，通用结论放 `notes/general/`。别用 `cat >>` 追加"更新于某日"。
 
 ## 2. 硬件事实：PSRAM 与面板抢引脚（本项目最大的坑）
 
@@ -60,7 +61,7 @@ PUD（Pico-USB-Display）设备端固件的 **ESP32-S3 移植**。本文件是�
 ⇒ 应用跑起来后 `/dev/ttyACM*` 消失、按 BOOT 变成常态。出路是让**应用自己配合**：
 主机向 UART0 RX（CH340 TX → GPIO41）发 `PUD-BOOT\n`，`main/boot_request.c` 置
 `RTC_CNTL_FORCE_DOWNLOAD_BOOT` 后重启 ⇒ 芯片进 ROM 下载态 ⇒ 照旧烧写。
-细节与实测见 `notes/flash-recovery.md`。
+细节与实测见 `notes/build-flash-recovery.md`。
 
 注意：应用**挂在 USB 初始化之前**时 USB-Serial-JTAG 一直活着，`/dev/ttyACM0`
 直接能烧（连 magic 都不需要）。
@@ -128,7 +129,17 @@ PUD（Pico-USB-Display）设备端固件的 **ESP32-S3 移植**。本文件是�
   取舍要重新算（可能反而该把 CPU 让给别的事）；
 - P4 是 **USB High-Speed 480 Mbps** ⇒ 带宽不再是天花板（S3 与 RP2350 都是
   全速 12 Mbps，这也是本移植"没有新信息"的原因）；
-- 面板接口是 MIPI-DSI / RGB ⇒ `Bus_Parallel16` + LCD_CAM 这一整套经验**不适用**。
+- 面板接口**别照搬**"P4 走 MIPI-DSI/RGB、所以 LCD_CAM 经验作废"这个说法 —— 那是本
+  文件早期写的，**已被 P4 上的实测否定** ✗：P4 有 `SOC_LCDCAM_I80_LCD_SUPPORTED`
+  ✓，同一块 i80 屏用 IDF `esp_lcd_panel_io_i80` 就跑起来了。**要换的是库
+  （LovyanGFX → IDF `esp_lcd`），不是总线**。P4 那边实测到的差异（都已上板确认）：
+  - 写时钟只能整数分频、基数 80 MHz ⇒ 请求值被**向下取整到 80/n**，本项目定档 40 MHz
+    （80 MHz 显示不对 ✗）；
+  - 每"窗口 + 一笔"有 ≈90~120 µs 固定开销（IDF `tx_param` 的结构性行为）⇒ **能整帧
+    就整帧**（40 行一条带只剩 36.4 MB/s，整帧 77.6 MB/s）；
+  - **P4 的 i80 能直接读 PSRAM**（实测与内部 RAM 源同速）⇒ 本文件 §2 那条"PSRAM 与
+    面板互斥"是 **S3 独有**的引脚冲突，P4 上不存在（P4 有 32 MB PSRAM，无冲突）；
+  - **JPEG 用硬件解码**（1.76 ms/帧 @480x320），别再走软解那套取舍。
 
 **最重要的一条教训**：**先确认内存（PSRAM）占用了哪些引脚，再接面板总线。**
 这个项目全部的时间都花在没先做这一步上。
