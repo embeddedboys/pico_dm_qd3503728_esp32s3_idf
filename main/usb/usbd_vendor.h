@@ -50,7 +50,7 @@ extern "C" {
  * there is no external RAM to fall back on (see main/include/config.h).
  */
 #ifndef PUD_MAX_TRANSFER
-#define PUD_MAX_TRANSFER (64 * 1024)
+#define PUD_MAX_TRANSFER (32 * 1024)
 #endif
 
 /* The staging buffer only has to hold one accepted transfer. */

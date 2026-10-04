@@ -173,7 +173,16 @@ public:
 
       cfg.freq_write = 50000000;
       cfg.pin_wr = TFT_PIN_WR;
-      cfg.pin_rd = TFT_PIN_RD;
+      /* RD (the panel's read strobe) is not used: this firmware only writes to
+       * the panel.  It is *not* merely unused, it is contended -- on the
+       * NOLOGO_ESP32S3_PICO pin map TFT_PIN_RD is GPIO41, which is exactly where
+       * the CH340's TX is wired for UART0 RX, so the two drive the same net and
+       * a read back through it returns garbage.  Freeing the pin is what makes
+       * the UART usable again.  Driving it was ruled out as a cause of the old
+       * boot loop (the loop was octal PSRAM taking GPIO33-37, see AGENTS.md);
+       * this is kept because the contention with the CH340 is real.  -1 means
+       * "not connected", the same way pin_cs above is -1. */
+      cfg.pin_rd = -1;
       cfg.pin_rs = TFT_PIN_RS;
 
       cfg.pin_d0 = TFT_PIN_D0;
