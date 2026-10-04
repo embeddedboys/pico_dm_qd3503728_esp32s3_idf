@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 烧录一条总是能走通的路：先探哪个口活着，探不到就明确告诉你该按什么。
 #
-# 背景（实测，见 notes/flash-recovery.md）：PUD 应用用内部 USB-OTG
+# 背景（实测，见 notes/build-flash-recovery.md）：PUD 应用用内部 USB-OTG
 # （main/main.c: "USB OTG device on GPIO19/20"），而 ESP32-S3 的 USB-OTG 与
 # USB-Serial-JTAG 共用同一对引脚 ⇒ 应用跑起来后 /dev/ttyACM* 会消失，
 # 此时 esptool 的 --before usb_reset 也没用（它本身就走那个口）。
@@ -88,7 +88,7 @@ if [ -z "$ALIVE" ]; then
 2) 物理 UART0（CH340，/dev/ttyUSB0）：本板**尚未验证成功**
    （实测 `No serial data received`）。要查的是 DTR/RTS 是否接到 EN/GPIO0；
    没接就得同样手动进下载态，并加 `--before no_reset`。
-3) 长效办法：让应用自己支持"请求进入下载态"（见 notes/flash-recovery.md 的方案 B）。
+3) 长效办法：让应用自己支持"请求进入下载态"（见 notes/build-flash-recovery.md 的三条恢复路径）。
 EOF
 	[ "$PROBE_ONLY" = 1 ] && exit 1
 	# 轮询而不是 sleep：人按下 BOOT+RESET 后口会自己出现，出现就继续。

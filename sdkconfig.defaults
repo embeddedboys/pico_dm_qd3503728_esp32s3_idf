@@ -58,8 +58,9 @@ CONFIG_CHERRYUSB_DEVICE=y
 # CONFIG_SPIRAM_SPEED_80M is not set
 # CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY is not set
 # Console UART0 TX routed to the Pico header's GP16 position (ESP32 GPIO42,
-# same header pin the RP2350 PUD build uses for its debug UART).  RX stays on
-# the default GPIO44 (free on this board); GP17/GPIO41 is the panel's RD line.
+# same header pin the RP2350 PUD build uses for its debug UART).  RX is on
+# GP17/GPIO41 -- that is where the CH340's TX lands on this board, and the
+# panel's RD has been released (cfg.pin_rd = -1) so the line is free.
 # TX/RX GPIO options only exist for a CUSTOM console UART.
 CONFIG_ESP_CONSOLE_UART_CUSTOM=y
 CONFIG_ESP_CONSOLE_UART_CUSTOM_NUM_0=y

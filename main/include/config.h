@@ -42,7 +42,9 @@ enum tft_rotation {
 /* Decoder selection: DECODER_USE_QOI (3).  The value is protocol-visible. */
 #define DECODER_TYPE 3
 
-/* The ESP32-S3-PICO SiP provides internal Octal PSRAM.  The panel remains
- * on its existing 16-bit hardware bus; decoder frame slots live in PSRAM. */
+/* PSRAM is OFF: this module's internal octal PSRAM permanently owns GPIO33-37,
+ * which is exactly where this board puts the panel's D8-D12 => enabling it
+ * hangs the CPU (see notes/psram-pin-conflict.md).  Decoder frame slots
+ * therefore live in internal RAM, which caps PUD_MAX_TRANSFER at 32 KB. */
 
 #endif /* __PUD_BOARD_CONFIG_H */
